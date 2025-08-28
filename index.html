@@ -146,18 +146,27 @@
     .calendar.zoom-week .cell:not(.zoom-target) {
       display: none;
     }
+    .calendar.zoom-week .cell.zoom-target {
+      display: block;
+      min-height: 150px;
+    }
     .calendar.zoom-day {
-      max-width: 400px;
+      max-width: 500px;
       margin: 0 auto;
     }
     .calendar.zoom-day .grid {
       grid-template-columns: 1fr;
+      grid-template-rows: 1fr;
     }
     .calendar.zoom-day .cell:not(.zoom-target) {
       display: none;
     }
-    .calendar.zoom-day .cell {
-      min-height: 200px;
+    .calendar.zoom-day .cell.zoom-target {
+      display: block;
+      min-height: 300px;
+    }
+    .calendar.zoom-day .dow {
+      display: none;
     }
     
     .zoom-controls {
@@ -426,8 +435,28 @@
     
     const year = state.view.getFullYear();
     const month = state.view.getMonth();
-    const monthName = state.view.toLocaleString(undefined,{ month:'long', year:'numeric' });
-    monthLabel.textContent = monthName;
+    
+    // Update label based on zoom level
+    if(state.zoomLevel === 'month') {
+      const monthName = state.view.toLocaleString(undefined,{ month:'long', year:'numeric' });
+      monthLabel.textContent = monthName;
+    } else if(state.zoomLevel === 'week' && state.zoomTarget) {
+      const weekStart = new Date(state.zoomTarget);
+      weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      
+      if(weekStart.getMonth() === weekEnd.getMonth()) {
+        monthLabel.textContent = `${weekStart.toLocaleDateString(undefined, {month: 'long', year: 'numeric'})} • Week of ${weekStart.getDate()}-${weekEnd.getDate()}`;
+      } else {
+        monthLabel.textContent = `Week of ${weekStart.toLocaleDateString(undefined, {month: 'short', day: 'numeric'})} - ${weekEnd.toLocaleDateString(undefined, {month: 'short', day: 'numeric', year: 'numeric'})}`;
+      }
+    } else if(state.zoomLevel === 'day' && state.zoomTarget) {
+      monthLabel.textContent = state.zoomTarget.toLocaleDateString(undefined, {weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'});
+    } else {
+      const monthName = state.view.toLocaleString(undefined,{ month:'long', year:'numeric' });
+      monthLabel.textContent = monthName;
+    }
     
     // Apply zoom level classes
     const calendar = document.querySelector('.calendar');
@@ -485,7 +514,8 @@
         if(isSameDay(d, state.zoomTarget)) {
           cell.classList.add('zoom-target');
         }
-      } else if(state.zoomLevel === 'month') {
+      } else {
+        // Month view - all cells are targets
         cell.classList.add('zoom-target');
       }
 
@@ -726,8 +756,44 @@
     grid.classList.add(direction === 1 ? 'slide-out-left' : 'slide-out-right');
     
     setTimeout(() => {
-      state.view.setMonth(state.view.getMonth() + direction);
+      if(state.zoomLevel === 'month') {
+        // Navigate months
+        state.view.setMonth(state.view.getMonth() + direction);
+      } else if(state.zoomLevel === 'week') {
+        // Navigate weeks
+        if(state.zoomTarget) {
+          const newDate = new Date(state.zoomTarget);
+          newDate.setDate(newDate.getDate() + (direction * 7));
+          state.zoomTarget = newDate;
+          
+          // Update view month if we've moved to a different month
+          if(newDate.getMonth() !== state.view.getMonth() || newDate.getFullYear() !== state.view.getFullYear()) {
+            state.view = new Date(newDate.getFullYear(), newDate.getMonth(), 1);
+          }
+        }
+      } else if(state.zoomLevel === 'day') {
+        // Navigate days
+        if(state.zoomTarget) {
+          const newDate = new Date(state.zoomTarget);
+          newDate.setDate(newDate.getDate() + direction);
+          state.zoomTarget = newDate;
+          
+          // Update view month if we've moved to a different month
+          if(newDate.getMonth() !== state.view.getMonth() || newDate.getFullYear() !== state.view.getFullYear()) {
+            state.view = new Date(newDate.getFullYear(), newDate.getMonth(), 1);
+          }
+          
+          // Update selected date for day view
+          state.selected = fmtDateKey(newDate);
+        }
+      }
+      
       render();
+      
+      // Update panel if in day view
+      if(state.zoomLevel === 'day' && state.zoomTarget) {
+        openDay(fmtDateKey(state.zoomTarget));
+      }
       
       // Animate new grid in
       grid.classList.remove('slide-out-left', 'slide-out-right');
