@@ -224,6 +224,8 @@
     .event:hover{ transform: translateX(5px); background: #0f1629; border-color: #334155; }
     .event-time{ color: var(--muted); font-size: 12px; }
     .event-title{ font-weight:600; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; }
+    .event-title-with-time{ font-weight:600; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; }
+    .event-time-inline{ color: var(--muted); font-size: 11px; font-weight:400; margin-left: 8px; }
     .event-actions{ display:flex; gap:6px; opacity: 0; transition: var(--transition); }
     .event:hover .event-actions{ opacity: 1; }
 
@@ -609,15 +611,27 @@
       const row = document.createElement('div');
       row.className = 'event';
       const color = document.createElement('span'); color.className='dot'; color.style.background = e.color || 'var(--accent)'; color.style.marginRight='4px';
-      const time = document.createElement('div'); time.className='event-time'; time.textContent = e.start + '–' + e.end;
-      const title = document.createElement('div'); title.className='event-title'; title.textContent = e.title;
+      
+      // Create title with inline time
+      const titleContainer = document.createElement('div'); 
+      titleContainer.className='event-title-with-time';
+      
+      const title = document.createElement('span'); 
+      title.textContent = e.title;
+      
+      const timeInline = document.createElement('span'); 
+      timeInline.className='event-time-inline'; 
+      timeInline.textContent = ` - ${e.start}-${e.end}`;
+      
+      titleContainer.append(title, timeInline);
+      
       const actions = document.createElement('div'); actions.className='event-actions';
       const del = document.createElement('button'); del.className='btn ghost'; del.textContent='Delete'; del.title='Delete event';
       del.addEventListener('click', () => deleteEvent(key, e.id));
       const edit = document.createElement('button'); edit.className='btn'; edit.textContent='Edit'; edit.title='Edit event';
       edit.addEventListener('click', () => editEvent(key, e.id));
       actions.append(edit, del);
-      row.append(color, time, title, actions);
+      row.append(color, titleContainer, actions);
       eventList.appendChild(row);
     }
   }
